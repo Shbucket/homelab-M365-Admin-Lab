@@ -100,6 +100,10 @@ Shared mailbox **Support** (`support@`):
 
 **Result:** an email sent by cpatel from `support@` arrived in tkim's inbox with **Support** as the sender.
 
+<img src="cpatelmailbox.png" >
+<img src="taylorkimmailbox.png">
+
+
 **Shared mailboxes need no license** (up to 50 GB) and **can't be signed into**: the account is created with sign-in blocked and no known password. Access comes only from permissions on real user accounts. When I opened Support by its direct URL, Outlook displayed "support" in the account menu, but clicking *View account* asked for Support's password — proof the session still belonged to cpatel.
 
 ---
@@ -141,6 +145,9 @@ New tenants start with **Security defaults**: basic MFA that is all on or all of
 | cpatel signs in | MFA required |
 | breakglass signs in | Password only (excluded) |
 
+
+<img src="mfasignin.png" >
+
 **Why exclude break-glass:** if an MFA policy or the MFA service itself breaks, every admin covered by it is locked out. One excluded emergency account guarantees a way back in. In production it gets an offline-stored password and an alert on every sign-in.
 
 ---
@@ -163,6 +170,8 @@ New tenants start with **Security defaults**: basic MFA that is all on or all of
 **Order of 6 and 7 matters:** removing the license first starts the countdown to deleting the mailbox. Converting to shared first keeps the mail without a license.
 
 **Result:** signing in as cpatel returned **"Your account has been locked."**
+
+<img src='accountlocked.png' >
 
 ---
 
