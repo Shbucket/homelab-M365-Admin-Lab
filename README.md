@@ -195,7 +195,6 @@ Users signed in as `mchen@lab.internal`. A `.internal` domain can't be verified 
 
 On-prem sign-in (`LAB\mchen`) is unaffected. In production this would be the company's own verified domain; the onmicrosoft.com domain is the lab equivalent.
 
-<img src='newusersAD.png' >
 
 ## 10. Entra Connect Sync
 
@@ -214,6 +213,8 @@ Installed on **DC01** with express settings, which enables **password hash sync*
 | ❌ | Disabled Users, Servers, Admin Accounts, Domain Controllers, built-in containers | Offboarded users, servers, admin accounts and system objects stay on-prem |
 
 **Result:** ksimmon, mchen and djones appeared in Microsoft 365 as **Synced from on-premises**; abrooks and the admin account did not.
+
+<img src='newusersAD.png' >
 
 ## 11. Synced users in Microsoft 365
 
