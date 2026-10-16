@@ -191,7 +191,7 @@ Goal: the department users from the AD lab sign in to Microsoft 365 with the **s
 Users signed in as `mchen@lab.internal`. A `.internal` domain can't be verified in Microsoft 365 — the cloud only accepts domains the tenant owns.
 
 - **Active Directory Domains and Trusts → Properties:** added `shbucket.onmicrosoft.com` as an **alternative UPN suffix**.
-- **ADUC:** changed the suffix for **jreyes, mchen, djones**. abrooks (offboarded) and the `adm.` admin account were left alone.
+- **ADUC:** changed the suffix for **ksimmon, mchen, djones**. abrooks (offboarded) and the `adm.` admin account were left alone.
 
 On-prem sign-in (`LAB\mchen`) is unaffected. In production this would be the company's own verified domain; the onmicrosoft.com domain is the lab equivalent.
 
@@ -213,7 +213,7 @@ Installed on **DC01** with express settings, which enables **password hash sync*
 | ✅ | LAB\Computers\Workstations | WS01 must be synced for Intune hybrid join |
 | ❌ | Disabled Users, Servers, Admin Accounts, Domain Controllers, built-in containers | Offboarded users, servers, admin accounts and system objects stay on-prem |
 
-**Result:** jreyes, mchen and djones appeared in Microsoft 365 as **Synced from on-premises**; abrooks and the admin account did not.
+**Result:** ksimmon, mchen and djones appeared in Microsoft 365 as **Synced from on-premises**; abrooks and the admin account did not.
 
 ## 11. Synced users in Microsoft 365
 
@@ -221,7 +221,7 @@ Installed on **DC01** with express settings, which enables **password hash sync*
 - **mchen signed in to office.com with her WS01 password** — no cloud password was ever set. CA01 required her to register MFA.
 - **AD is the source of authority.** The admin center blocked editing her synced attributes and, until writeback was enabled, resetting her password. Changes to synced users happen in ADUC and flow up.
 
-
+<img src="mchensigned.png">
 
 ## 12. Password writeback and self-service password reset
 
