@@ -195,6 +195,8 @@ Users signed in as `mchen@lab.internal`. A `.internal` domain can't be verified 
 
 On-prem sign-in (`LAB\mchen`) is unaffected. In production this would be the company's own verified domain; the onmicrosoft.com domain is the lab equivalent.
 
+<img src='newusersAD.png' >
+
 ## 10. Entra Connect Sync
 
 Installed on **DC01** with express settings, which enables **password hash sync**. (In production the sync server is a separate member server, treated with the same protection as a domain controller. Installing on DC01 is a lab simplification.) A Proxmox snapshot was taken first.
@@ -219,6 +221,8 @@ Installed on **DC01** with express settings, which enables **password hash sync*
 - **mchen signed in to office.com with her WS01 password** — no cloud password was ever set. CA01 required her to register MFA.
 - **AD is the source of authority.** The admin center blocked editing her synced attributes and, until writeback was enabled, resetting her password. Changes to synced users happen in ADUC and flow up.
 
+
+
 ## 12. Password writeback and self-service password reset
 
 **Writeback** (Entra Connect → Optional features → Password writeback, and Entra admin center → Password reset → On-premises integration) lets password changes made in the cloud flow back down into AD.
@@ -240,6 +244,8 @@ Installed on **DC01** with express settings, which enables **password hash sync*
 | mchen locked out on WS01 (5 bad attempts), unlocks at aka.ms/sspr without resetting | Signs in to WS01 with her current password; no IT involvement |
 
 The second test is the cloud answer to the lockout ticket from the AD lab: the user unlocks herself instead of calling IT to click *Unlock account* in ADUC.
+
+<img src='accountunlocked.png'>
 
 ---
 
