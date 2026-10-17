@@ -2,7 +2,13 @@
 
 ## Overview
 
-The cloud half of my homelab. My [Active Directory lab](https://github.com/Shbucket/homelab-active-directory-labV2) runs an on-prem domain (`lab.internal`) inside a segmented [Cisco network](https://github.com/Shbucket/homelab-cisco-network-lab-rebuild-). This lab adds a **Microsoft 365 tenant** and works through the admin tasks a help desk handles every day: users and licenses, password resets, groups, shared mailboxes, least-privilege admin roles, MFA with Conditional Access, and offboarding.
+The cloud half of my homelab. My [Active Directory lab](https://github.com/Shbucket/homelab-active-directory-labV2) runs an on-prem domain (`lab.internal`) inside a segmented [Cisco network](https://github.com/Shbucket/homelab-cisco-network-lab-rebuild-). This lab adds a **Microsoft 365 tenant** and connects the two, so the same users and the same workstation are managed on-prem and in the cloud — the hybrid setup most small and mid-sized companies actually run.
+
+It covers three areas:
+
+- **Microsoft 365 administration:** the tasks a help desk handles every day — users and licenses, password resets, groups, shared mailboxes, least-privilege admin roles, MFA with Conditional Access, and offboarding.
+- **Hybrid identity:** Entra Connect syncs the AD users into Microsoft 365, so they sign in to Office with the same password they use on their domain-joined PC. Password writeback and self-service password reset let users reset a forgotten password or unlock their account without calling IT.
+- **Intune:** the domain-joined workstation (WS01) is hybrid joined to Entra ID and enrolled in Intune, then given a compliance policy, a configuration profile and a required app — managed from the cloud alongside the Group Policy it already receives.
 
 It's built in stages:
 
@@ -10,7 +16,7 @@ It's built in stages:
 |---|---|---|
 | 1 | Microsoft 365 administration | ✅ Done |
 | 2 | Hybrid identity: Entra Connect sync of `lab.internal`, self-service password reset | ✅ Done |
-| 3 | Intune: enroll WS01, compliance and configuration policies, app deployment | Planned |
+| 3 | Intune: enroll WS01, compliance and configuration policies, app deployment | ✅ Done |
 
 Same method as the network and AD builds: **predict the result, make the change, verify it, and document what went wrong.**
 
@@ -250,6 +256,94 @@ The second test is the cloud answer to the lockout ticket from the AD lab: the u
 
 ---
 
+# Stage 3: Intune
+
+```
+ WS01 (domain-joined, Win 10 22H2)
+   │  hybrid join (Entra Connect device options + SCP in AD)
+   ▼
+ Entra ID device ── MDM enrollment ──► Intune
+                                         ├─ Compliance policy   → reports Compliant / Not compliant
+                                         ├─ Configuration profile (Edge settings)
+                                         └─ App deployment (Company Portal)
+```
+
+Goal: manage the same WS01 that Group Policy already manages, from the cloud. Windows 10 reached end of support in October 2025; Intune still allows **22H2** devices to enroll and use core management ([MC1155424](https://www.itelio.com/en/microsoft-message-center/MC1155424)), so `winver` was checked first.
+
+## 13. Hybrid Entra join
+
+Entra Connect → **Configure device options → Configure Hybrid Microsoft Entra join** → *Windows 10 or later domain-joined devices*, with the `lab.internal` forest and Enterprise Admin credentials. This writes a **service connection point (SCP)** into AD that tells every domain-joined PC which tenant to register with. (LAB\Computers\Workstations was already in the sync scope from section 10, so WS01's computer object could sync.)
+
+Rather than wait up to 30 minutes for the next sync cycle, I forced one on DC01:
+
+```powershell
+Start-ADSyncSyncCycle -PolicyType Delta
+```
+
+After mchen signed out and back in on WS01, `dsregcmd /status` showed:
+
+```
+AzureAdJoined : YES
+DomainJoined  : YES
+AzureAdPrt    : YES
+```
+
+## 14. Enrollment
+
+**Planned path — automatic enrollment by GPO:**
+
+| Piece | Setting |
+|---|---|
+| Intune → Windows enrollment → Automatic Enrollment | MDM user scope **Some → Intune-Pilot** (mchen added), MAM scope None |
+| GPO **Intune Auto-Enrollment** linked to LAB\Computers\Workstations | *Enable automatic MDM enrollment using default Azure AD credentials* → **Enabled, User Credential** |
+
+The GPO applied and wrote `AutoEnrollMDM = 1` and `UseAADCredentialType = 1` to the registry, but the enrollment **scheduled task was never created** (Task Scheduler → EnterpriseMgmt stayed empty), so no enrollment was ever attempted. Details and everything checked are under *Lessons Learned*. **Open issue.**
+
+**Fallback — manual enrollment:** Settings → Accounts → Access work or school → **Enroll only in device management**. (Done from an IT session, since the Desktop Restrictions GPO blocks Settings for HR.) WS01 then showed **Connected to self MDM** alongside **Connected to LAB AD domain**, and appeared in Intune under Devices → Windows.
+
+The enrollment was completed with my admin account, so Intune lists the admin as WS01's primary user. In production the enrolling account would be the person who uses the PC. To keep policy targeting independent of the user, **the WS01 device object was added to Intune-Pilot** and all policies below target that group.
+
+## 15. Compliance policy
+
+**Windows - Baseline Compliance** (Windows 10 and later), assigned to Intune-Pilot:
+
+| Setting | Value |
+|---|---|
+| BitLocker | Require |
+| Minimum OS version | 10.0.19045 (Windows 10 22H2) |
+| Password required to unlock | Require |
+| Firewall | Require |
+| Antivirus / Defender Antimalware | Require |
+| Noncompliance action | Mark noncompliant immediately |
+
+**Result: Not compliant** — as predicted, since a VM without a TPM has no BitLocker. The per-setting report on the device shows exactly which requirement failed.
+
+**Why it matters:** compliance on its own only *reports*. Paired with a Conditional Access rule such as "require a compliant device for Exchange Online," a failing device loses access to email — and the device's compliance report is where help desk starts on *"I can't get into Outlook on my new laptop."*
+
+## 16. Configuration profile
+
+**Edge - Company Homepage** (Settings catalog), assigned to Intune-Pilot:
+
+| Setting | Value |
+|---|---|
+| Configure the home page URL | https://www.office.com |
+| Show Home button on toolbar | Enabled |
+| Action to take on startup | Open a list of URLs |
+| Sites to open when the browser starts | https://www.office.com |
+
+**Result:** after a device sync, Edge on WS01 opened office.com with a Home button, and **`edge://policy`** listed each setting as applied by management — the Intune equivalent of checking `gpresult`.
+
+## 17. App deployment
+
+**Company Portal**, added as a **Microsoft Store app (new)**, assignment **Required** for Intune-Pilot.
+
+- *Required* installs automatically; *Available* would only offer it in Company Portal for users to install themselves.
+- Company Portal is where users self-install approved apps and see their device's compliance status.
+
+**Result:** Company Portal appeared on WS01 without anyone installing it by hand.
+
+---
+
 ## Lessons Learned / Troubleshooting
 
 **Locked out of the first tenant.** The developer sandbox's only admin account had the Authenticator app as its only MFA method. When the app could no longer approve sign-ins, there was no other way in: no second admin, no backup method, and no custom domain to prove ownership to Microsoft. Deleting the Developer Program profile to start over then triggered a 60-day wait before a new sandbox, so I moved to a Business Premium trial. Fix applied in the new tenant: two MFA methods, Authenticator backup, and a tested break-glass account before anything else (section 1).
@@ -262,8 +356,17 @@ The second test is the cloud answer to the lockout ticket from the AD lab: the u
 
 **Password reset worked in Microsoft 365 but not on WS01.** After enabling writeback, I reset mchen's password in the **Microsoft 365 admin center**. Office accepted the new password; WS01 still accepted only the old one. DC01's Application log showed writeback was healthy (PasswordResetService connection events and regular 31019 heartbeats) but **no event for the reset** — AD never received it. Cause: [Microsoft 365 admin center resets don't use password writeback](https://learn.microsoft.com/es-es/troubleshoot/azure/entra/entra-id/user-prov-sync/password-writeback-microsoft-365-admin-center); only the cloud password changed, leaving the two out of sync. Resetting from the **Entra admin center** wrote back immediately. Real-world version: *"I reset her password, but she still can't log in to her PC."*
 
+**`gpresult` didn't list the enrollment GPO.** Run as mchen (a standard user), `gpresult /r` only reports user policy, so the computer-side GPO looked missing. From an elevated prompt with an admin account, `gpresult /r /scope computer` showed **Intune Auto-Enrollment** applied.
+
+**Automatic Intune enrollment never started (open).** Everything upstream checked out: WS01 hybrid joined with a PRT, tenant MDM scope set (eventually to *All* to rule out group targeting) with all three MDM URLs filled in, and the GPO's registry values present. But `dsregcmd /status` kept showing a blank **MdmUrl**, the **EnterpriseMgmt** scheduled task was never created (even after a restart), and the enrollment event log had no entries for that day. Running `deviceenroller.exe /c /AutoEnrollMDM` from my admin prompt also did nothing — the admin account isn't synced, so there was no cloud user to enroll with. Manual enrollment through *Access work or school* worked immediately, which narrows the fault to the automatic trigger on WS01 rather than the tenant or licensing. Next checks: the Group Policy Operational log around policy processing, leftover enrollment entries under `HKLM\SOFTWARE\Microsoft\Enrollments`, and testing the same GPO on a fresh Windows 11 VM.
+
+**Intune changes didn't show up right away.** The compliance policy, configuration profile and app each took 10–30 minutes to reach WS01 and appear in reports. A manual **Sync** (from the device page in Intune, or Access work or school → Info → Sync on the device) shortens the wait; reports in the portal lag behind what's already applied on the device.
+
 ---
 
 ## What's Next
 
-- **Intune:** enroll WS01, compliance policy, configuration profile and app deployment, piloted on the Intune-Pilot group
+- **Fix automatic enrollment** on WS01, or prove the GPO on a fresh Windows 11 VM
+- **Conditional Access: require a compliant device** for Exchange Online, then remediate WS01 to pass (BitLocker with a virtual TPM)
+- **Windows Update rings** in Intune to replace update settings managed by GPO
+- **Entra-joined Windows 11 device** enrolled during setup — the cloud-only path Microsoft now recommends for new PCs
