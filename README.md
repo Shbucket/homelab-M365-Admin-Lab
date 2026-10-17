@@ -288,6 +288,8 @@ DomainJoined  : YES
 AzureAdPrt    : YES
 ```
 
+<img src="azurestatus.png">
+
 ## 14. Enrollment
 
 **Planned path — automatic enrollment by GPO:**
@@ -318,6 +320,8 @@ The enrollment was completed with my admin account, so Intune lists the admin as
 
 **Result: Not compliant** — as predicted, since a VM without a TPM has no BitLocker. The per-setting report on the device shows exactly which requirement failed.
 
+<img src="">
+
 **Why it matters:** compliance on its own only *reports*. Paired with a Conditional Access rule such as "require a compliant device for Exchange Online," a failing device loses access to email — and the device's compliance report is where help desk starts on *"I can't get into Outlook on my new laptop."*
 
 ## 16. Configuration profile
@@ -333,6 +337,8 @@ The enrollment was completed with my admin account, so Intune lists the admin as
 
 **Result:** after a device sync, Edge on WS01 opened office.com with a Home button, and **`edge://policy`** listed each setting as applied by management — the Intune equivalent of checking `gpresult`.
 
+<img src="edgepolicies.png">
+
 ## 17. App deployment
 
 **Company Portal**, added as a **Microsoft Store app (new)**, assignment **Required** for Intune-Pilot.
@@ -342,6 +348,7 @@ The enrollment was completed with my admin account, so Intune lists the admin as
 
 **Result:** Company Portal appeared on WS01 without anyone installing it by hand.
 
+<img src="company portal.png">
 ---
 
 ## Lessons Learned / Troubleshooting
