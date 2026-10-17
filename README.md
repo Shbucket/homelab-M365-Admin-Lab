@@ -320,7 +320,7 @@ The enrollment was completed with my admin account, so Intune lists the admin as
 
 **Result: Not compliant** — as predicted, since a VM without a TPM has no BitLocker. The per-setting report on the device shows exactly which requirement failed.
 
-<img src="">
+<img src="bitlocker.png">
 
 **Why it matters:** compliance on its own only *reports*. Paired with a Conditional Access rule such as "require a compliant device for Exchange Online," a failing device loses access to email — and the device's compliance report is where help desk starts on *"I can't get into Outlook on my new laptop."*
 
