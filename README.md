@@ -348,7 +348,7 @@ The enrollment was completed with my admin account, so Intune lists the admin as
 
 **Result:** Company Portal appeared on WS01 without anyone installing it by hand.
 
-<img src="company portal.png">
+<img src="company-portal.png">
 ---
 
 ## Lessons Learned / Troubleshooting
